@@ -9,6 +9,7 @@ download_url = [
      ["./rtdetrv2/dataset", "./hot/dataset"]],
     ["pretrained.tar", "https://drive.google.com/file/d/18CMFCVaHpOGuHLuYt8MLIvejGNNzwfWG/view?usp=sharing",
      ["./hot/checkpoint/pretrained", "./rtdetrv2/references/deploy/checkpoint/pretrained"]],
+    ["yolo11.tar", "https://drive.google.com/file/d/1Gj4k9u-17cfTzKBLIG1K1Rei5I7Qmtos/view?usp=sharing", ["./rtdetrv2"]]
 ]
 
 for tar_file_name, url, unzip_dir in download_url:
