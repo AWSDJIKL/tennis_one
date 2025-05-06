@@ -30,6 +30,10 @@ hot/dataset/*
 rtdetrv2/references/deploy/lib/checkpoint/*
 hot/checkpoint/pretrained/*
 rtdetrv2/references/deploy/checkpoint/pretrained/*
+pyorbbecsdk/build
+pyorbbecsdk/build/*
+pyorbbecsdk/install
+pyorbbecsdk/install/*
 ### C++ ###
 # Prerequisites
 *.d

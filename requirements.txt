@@ -1,2 +1,24 @@
 gdown
-tarfile
+torch>=2.0.1
+torchvision>=0.15.2
+faster-coco-eval>=1.6.5
+PyYAML
+tensorboard
+einops
+timm
+matplotlib==3.7.1
+tqdm
+yacs
+numba
+filterpy
+scikit-image
+opencv-python
+ipython
+pybind11==2.11.0
+pybind11-global==2.11.0
+opencv-python
+numpy<2.0  # see https://github.com/orbbec/pyorbbecsdk/issues/47
+plyfile # for saving point cloud
+open3d # for visualization point cloud
+av # for h264 decoding
+pygame # for visualization
