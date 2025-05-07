@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2023 Orbbec 3D Technology, Inc
+ * Copyright (c) 2024 Orbbec 3D Technology, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,18 +26,22 @@ Pipeline::Pipeline() : impl_(std::make_shared<ob::Pipeline>()) {}
 Pipeline::Pipeline(std::shared_ptr<ob::Device> device)
     : impl_(std::make_shared<ob::Pipeline>(std::move(device))) {}
 
-Pipeline::Pipeline(const std::string &bag_path)
-    : impl_(std::make_shared<ob::Pipeline>(bag_path.c_str())) {}
-
-Pipeline::~Pipeline() {
-  if (impl_ && is_started_) {
-    impl_->stop();
+Pipeline::~Pipeline() noexcept {
+  try {
+    if (impl_ && is_started_) {
+      impl_->stop();
+    }
+  } catch (const ob::Error &e) {
+    std::cerr << "Error stopping pipeline: " << e.getMessage() << std::endl;
+  } catch (const std::exception &e) {
+    std::cerr << "Error stopping pipeline: " << e.what() << std::endl;
+  } catch (...) {
+    std::cerr << "Unknown error stopping pipeline" << std::endl;
   }
 }
 
 void Pipeline::start(std::shared_ptr<ob::Config> config) {
   CHECK_NULLPTR(impl_);
-  // CHECK_NULLPTR(config);
   OB_TRY_CATCH({ impl_->start(std::move(config)); });
   is_started_ = true;
 }
@@ -57,9 +61,18 @@ void Pipeline::start(std::shared_ptr<ob::Config> config,
 }
 
 void Pipeline::stop() {
-  CHECK_NULLPTR(impl_);
-  impl_->stop();
-  is_started_ = false;
+  try {
+    if (impl_) {
+      impl_->stop();
+      is_started_ = false;
+    }
+  } catch (const ob::Error &e) {
+    std::cerr << "Error stopping pipeline: " << e.getMessage() << std::endl;
+  } catch (const std::exception &e) {
+    std::cerr << "Error stopping pipeline: " << e.what() << std::endl;
+  } catch (...) {
+    std::cerr << "Unknown error stopping pipeline" << std::endl;
+  }
 }
 
 std::shared_ptr<ob::Config> Pipeline::get_config() {
@@ -67,67 +80,50 @@ std::shared_ptr<ob::Config> Pipeline::get_config() {
   OB_TRY_CATCH({ return impl_->getConfig(); });
 }
 
-std::shared_ptr<ob::FrameSet> Pipeline::wait_for_frames(uint32_t timeout) {
+std::shared_ptr<ob::FrameSet> Pipeline::wait_for_frames(
+    uint32_t timeout) const {
   CHECK_NULLPTR(impl_);
   OB_TRY_CATCH({ return impl_->waitForFrames(timeout); });
 }
 
-std::shared_ptr<ob::Playback> Pipeline::get_playback() {
-  CHECK_NULLPTR(impl_);
-  OB_TRY_CATCH({ return impl_->getPlayback(); });
-}
-
-std::shared_ptr<ob::Device> Pipeline::get_device() {
+std::shared_ptr<ob::Device> Pipeline::get_device() const {
   OB_TRY_CATCH({ return impl_->getDevice(); });
 }
 
 std::shared_ptr<ob::StreamProfileList> Pipeline::get_stream_profile_list(
-    OBSensorType sensor_type) {
+    OBSensorType sensor_type) const {
   CHECK_NULLPTR(impl_);
   OB_TRY_CATCH({ return impl_->getStreamProfileList(sensor_type); });
 }
 
-void Pipeline::enable_frame_sync() {
+void Pipeline::enable_frame_sync() const {
   CHECK_NULLPTR(impl_);
   OB_TRY_CATCH({ impl_->enableFrameSync(); });
 }
 
-void Pipeline::disable_frame_sync() {
+void Pipeline::disable_frame_sync() const {
   CHECK_NULLPTR(impl_);
   OB_TRY_CATCH({ impl_->disableFrameSync(); });
 }
 
-OBCameraParam Pipeline::get_camera_param() {
+OBCameraParam Pipeline::get_camera_param() const {
   CHECK_NULLPTR(impl_);
 
   OB_TRY_CATCH({ return impl_->getCameraParam(); });
 }
 
-OBRect Pipeline::get_d2c_valid_area(uint32_t minimum_z, uint32_t maximum_z) {
+std::shared_ptr<ob::StreamProfileList> Pipeline::get_d2c_depth_profile_list(
+    std::shared_ptr<ob::StreamProfile> color_profile,
+    OBAlignMode align_mode) const {
   CHECK_NULLPTR(impl_);
-  OB_TRY_CATCH({ return impl_->getD2CValidArea(minimum_z, maximum_z); });
-}
-
-void Pipeline::switch_config(std::shared_ptr<ob::Config> config) {
-  CHECK_NULLPTR(impl_);
-  CHECK_NULLPTR(config);
-  OB_TRY_CATCH({ impl_->switchConfig(std::move(config)); });
-}
-
-void Pipeline::start_recording(const std::string &file_path) {
-  CHECK_NULLPTR(impl_);
-  OB_TRY_CATCH({ impl_->startRecord(file_path.c_str()); });
-}
-
-void Pipeline::stop_recording() {
-  OB_TRY_CATCH({ impl_->stopRecord(); });
+  OB_TRY_CATCH(
+      { return impl_->getD2CDepthProfileList(color_profile, align_mode); });
 }
 
 void define_pipeline(py::object &m) {
   py::class_<Pipeline>(m, "Pipeline")
       .def(py::init<>())
       .def(py::init<std::shared_ptr<ob::Device>>())
-      .def(py::init<const std::string &>())
       .def("start",
            [](Pipeline &self, std::shared_ptr<ob::Config> config) {
              self.start(std::move(config));
@@ -139,7 +135,8 @@ void define_pipeline(py::object &m) {
            })
       .def("start", [](Pipeline &self) { self.start(nullptr); })
       .def(
-          "stop", [](Pipeline &self) { self.stop(); })
+          "stop", [](Pipeline &self) { self.stop(); },
+          py::call_guard<py::gil_scoped_release>())
       .def(
           "get_config", [](Pipeline &self) { return self.get_config(); },
           py::call_guard<py::gil_scoped_release>())
@@ -148,9 +145,6 @@ void define_pipeline(py::object &m) {
           [](Pipeline &self, uint32_t timeout) {
             return self.wait_for_frames(timeout);
           },
-          py::call_guard<py::gil_scoped_release>())
-      .def(
-          "get_playback", [](Pipeline &self) { return self.get_playback(); },
           py::call_guard<py::gil_scoped_release>())
       .def(
           "get_device", [](Pipeline &self) { return self.get_device(); },
@@ -173,25 +167,11 @@ void define_pipeline(py::object &m) {
           [](Pipeline &self) { return self.get_camera_param(); },
           py::call_guard<py::gil_scoped_release>())
       .def(
-          "get_d2c_valid_area",
-          [](Pipeline &self, uint32_t minimum_z, uint32_t maximum_z) {
-            return self.get_d2c_valid_area(minimum_z, maximum_z);
+          "get_d2c_depth_profile_list",
+          [](Pipeline &self, std::shared_ptr<ob::StreamProfile> color_profile,
+             OBAlignMode align_mode) {
+            return self.get_d2c_depth_profile_list(color_profile, align_mode);
           },
-          py::call_guard<py::gil_scoped_release>())
-      .def(
-          "switch_config",
-          [](Pipeline &self, std::shared_ptr<ob::Config> config) {
-            self.switch_config(std::move(config));
-          },
-          py::call_guard<py::gil_scoped_release>())
-      .def(
-          "start_recording",
-          [](Pipeline &self, const std::string &file_path) {
-            self.start_recording(file_path);
-          },
-          py::call_guard<py::gil_scoped_release>())
-      .def(
-          "stop_recording", [](Pipeline &self) { self.stop_recording(); },
           py::call_guard<py::gil_scoped_release>());
 }
 
@@ -203,11 +183,67 @@ void define_pipeline_config(py::object &m) {
               const std::shared_ptr<ob::StreamProfile> &stream_profile) {
              OB_TRY_CATCH({ self->enableStream(stream_profile); });
            })
+      .def("enable_stream",
+           [](std::shared_ptr<ob::Config> &self, OBStreamType stream_type) {
+             OB_TRY_CATCH({ self->enableStream(stream_type); });
+           })
+      .def("enable_stream",
+           [](std::shared_ptr<ob::Config> &self, OBSensorType sensor_type) {
+             OB_TRY_CATCH({ self->enableStream(sensor_type); });
+           })
+      .def(
+          "enable_video_stream",
+          [](std::shared_ptr<ob::Config> &self, OBStreamType stream_type,
+             int width, int height, int fps, OBFormat format) {
+            OB_TRY_CATCH({
+              self->enableVideoStream(stream_type, width, height, fps, format);
+            });
+          },
+          py::arg("stream_type"), py::arg("width") = OB_WIDTH_ANY,
+          py::arg("height") = OB_HEIGHT_ANY, py::arg("fps") = 30,
+          py::arg("format") = OB_FORMAT_ANY)
+      .def(
+          "enable_video_stream",
+          [](std::shared_ptr<ob::Config> &self, OBSensorType sensor_type,
+             int width, int height, int fps, OBFormat format) {
+            OB_TRY_CATCH({
+              self->enableVideoStream(sensor_type, width, height, fps, format);
+            });
+          },
+          py::arg("sensor_type"), py::arg("width") = OB_WIDTH_ANY,
+          py::arg("height") = OB_HEIGHT_ANY, py::arg("fps") = 30,
+          py::arg("format") = OB_FORMAT_ANY)
+      .def(
+          "enable_accel_stream",
+          [](std::shared_ptr<ob::Config> &self,
+             OBAccelFullScaleRange full_scale_range,
+             OBAccelSampleRate sample_rate) {
+            OB_TRY_CATCH(
+                { self->enableAccelStream(full_scale_range, sample_rate); });
+          },
+          py::arg("full_scale_range") =
+              OBAccelFullScaleRange::OB_ACCEL_FS_UNKNOWN,
+          py::arg("sample_rate") = OBAccelSampleRate::OB_SAMPLE_RATE_UNKNOWN)
+      .def(
+          "enable_gyro_stream",
+          [](std::shared_ptr<ob::Config> &self,
+             OBGyroFullScaleRange full_scale_range,
+             OBGyroSampleRate sample_rate) {
+            OB_TRY_CATCH(
+                { self->enableGyroStream(full_scale_range, sample_rate); });
+          },
+          py::arg("full_scale_range") =
+              OBGyroFullScaleRange::OB_GYRO_FS_UNKNOWN,
+          py::arg("sample_rate") = OBGyroSampleRate::OB_SAMPLE_RATE_UNKNOWN)
       .def("enable_all_stream",
            [](std::shared_ptr<ob::Config> &self) { self->enableAllStream(); })
       .def("disable_stream",
            [](std::shared_ptr<ob::Config> &self, OBStreamType stream_type) {
              OB_TRY_CATCH({ self->disableStream(stream_type); });
+           })
+      .def("disable_stream",
+           [](std::shared_ptr<ob::Config> &self, OBSensorType sensor_type) {
+             OB_TRY_CATCH({ self->disableStream(sensor_type); });
            })
       .def("disable_all_stream",
            [](std::shared_ptr<ob::Config> &self) {
@@ -217,14 +253,15 @@ void define_pipeline_config(py::object &m) {
            [](std::shared_ptr<ob::Config> &self, OBAlignMode align_mode) {
              OB_TRY_CATCH({ self->setAlignMode(align_mode); });
            })
-      .def(
-          "set_depth_scale_require",
-          [](std::shared_ptr<ob::Config> &self, bool depth_scale_required) {
-            OB_TRY_CATCH({ self->setDepthScaleRequire(depth_scale_required); });
-          })
-      .def("set_d2c_target_resolution", [](std::shared_ptr<ob::Config> &self,
-                                           uint32_t width, uint32_t height) {
-        OB_TRY_CATCH({ self->setD2CTargetResolution(width, height); });
+      .def("set_frame_aggregate_output_mode",
+           [](std::shared_ptr<ob::Config> &self,
+              OBFrameAggregateOutputMode mode) {
+             OB_TRY_CATCH({ self->setFrameAggregateOutputMode(mode); });
+           })
+
+      .def("set_depth_scale_require", [](std::shared_ptr<ob::Config> &self,
+                                         bool depth_scale_required) {
+        OB_TRY_CATCH({ self->setDepthScaleRequire(depth_scale_required); });
       });
 }
 

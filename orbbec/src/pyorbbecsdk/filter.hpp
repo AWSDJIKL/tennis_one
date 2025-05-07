@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2023 Orbbec 3D Technology, Inc
+ * Copyright (c) 2024 Orbbec 3D Technology, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,5 @@ void define_sequence_id_filter(const py::object& m);
 void define_noise_removal_filter(const py::object& m);
 
 void define_decimation_filter(const py::object& m);
-
-void define_edge_noise_removal_filter(const py::object& m);
 
 }  // namespace pyorbbecsdk

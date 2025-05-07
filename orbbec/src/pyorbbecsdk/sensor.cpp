@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2023 Orbbec 3D Technology, Inc
+ * Copyright (c) 2024 Orbbec 3D Technology, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,10 @@
 #include "sensor.hpp"
 
 #include "error.hpp"
+#include <pybind11/stl.h>
+#include <pybind11/functional.h>
+#include <pybind11/chrono.h>
+#include <pybind11/complex.h>
 
 namespace pyorbbecsdk {
 
@@ -86,6 +90,9 @@ void define_sensor_list(const py::object& m) {
            })
       .def("__len__", [](const std::shared_ptr<ob::SensorList>& self) {
         return self->count();
+      })
+      .def("__getitem__", [](const std::shared_ptr<ob::SensorList> &self, int index) {
+        return self->getSensor(index);
       });
 }
 
@@ -102,6 +109,9 @@ void define_filter_list(const py::object& m) {
            })
       .def("__len__", [](const std::shared_ptr<ob::OBFilterList>& self) {
         return self->count();
+      })
+      .def("__getitem__", [](const std::shared_ptr<ob::OBFilterList> &self, int index) {
+        return self->getFilter(index);
       });
 }
 }  // namespace pyorbbecsdk

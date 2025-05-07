@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2023 Orbbec 3D Technology, Inc
+ * Copyright (c) 2024 Orbbec 3D Technology, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -236,8 +236,59 @@ void define_properties(const py::object& m) {
              OBPropertyID::OB_PROP_LASER_CONTROL_INT,
              "Laser control, 0: off, 1: on, 2: auto")
       .value("OB_PROP_IR_BRIGHTNESS_INT",
-             OBPropertyID::OB_PROP_IR_BRIGHTNESS_INT,
-             "IR brightness")
+             OBPropertyID::OB_PROP_IR_BRIGHTNESS_INT, "IR brightness")
+      .value("OB_PROP_SLAVE_DEVICE_SYNC_STATUS_BOOL",
+             OBPropertyID::OB_PROP_SLAVE_DEVICE_SYNC_STATUS_BOOL)
+      .value("OB_PROP_COLOR_AE_MAX_EXPOSURE_INT",
+             OBPropertyID::OB_PROP_COLOR_AE_MAX_EXPOSURE_INT,
+             "Color AE max exposure")
+      .value("OB_PROP_IR_AE_MAX_EXPOSURE_INT",
+             OBPropertyID::OB_PROP_IR_AE_MAX_EXPOSURE_INT,
+             "Max exposure time of IR auto exposure")
+      .value("OB_PROP_DISP_SEARCH_RANGE_MODE_INT",
+             OBPropertyID::OB_PROP_DISP_SEARCH_RANGE_MODE_INT,
+             "Disparity search range mode, 1: 128, 2: 256")
+       .value("OB_PROP_LASER_HIGH_TEMPERATURE_PROTECT_BOOL",
+             OBPropertyID::OB_PROP_LASER_HIGH_TEMPERATURE_PROTECT_BOOL,
+             "Laser high temperature protection")
+       .value("OB_PROP_LOW_EXPOSURE_LASER_CONTROL_BOOL",
+             OBPropertyID::OB_PROP_LOW_EXPOSURE_LASER_CONTROL_BOOL,
+             "low exposure laser control")
+       .value("OB_PROP_CHECK_PPS_SYNC_IN_SIGNAL_BOOL",
+             OBPropertyID::OB_PROP_CHECK_PPS_SYNC_IN_SIGNAL_BOOL,
+             "check pps sync in signal")
+       .value("OB_PROP_DISP_SEARCH_OFFSET_INT",
+             OBPropertyID::OB_PROP_DISP_SEARCH_OFFSET_INT,
+             "Disparity search range offset, range: [0, 127]")
+      .value("OB_PROP_DEVICE_REPOWER_BOOL",
+             OBPropertyID::OB_PROP_DEVICE_REPOWER_BOOL,
+             "Repower device (cut off power and power on again)")
+      .value("OB_PROP_FRAME_INTERLEAVE_CONFIG_INDEX_INT",
+             OBPropertyID::OB_PROP_FRAME_INTERLEAVE_CONFIG_INDEX_INT,
+             "frame interleave config index")
+      .value("OB_PROP_FRAME_INTERLEAVE_ENABLE_BOOL",
+             OBPropertyID::OB_PROP_FRAME_INTERLEAVE_ENABLE_BOOL,
+             "frame interleave enable (true:enable,false:disable)")
+      .value(
+          "OB_PROP_FRAME_INTERLEAVE_LASER_PATTERN_SYNC_DELAY_INT",
+          OBPropertyID::OB_PROP_FRAME_INTERLEAVE_LASER_PATTERN_SYNC_DELAY_INT,
+          "laser pattern sync with delay(us)")
+       .value(
+          "OB_PROP_ON_CHIP_CALIBRATION_HEALTH_CHECK_FLOAT",
+          OBPropertyID::OB_PROP_ON_CHIP_CALIBRATION_HEALTH_CHECK_FLOAT,
+          "Get the health check result from device,range is [0.0f,1.5f]")
+       .value(
+          "OB_PROP_ON_CHIP_CALIBRATION_ENABLE_BOOL",
+          OBPropertyID::OB_PROP_ON_CHIP_CALIBRATION_ENABLE_BOOL,
+          "Enable or disable on-chip calibration")
+       .value(
+          "OB_PROP_HW_NOISE_REMOVE_FILTER_ENABLE_BOOL",
+          OBPropertyID::OB_PROP_HW_NOISE_REMOVE_FILTER_ENABLE_BOOL,
+          "hardware noise remove filter switch")
+       .value(
+          "OB_PROP_HW_NOISE_REMOVE_FILTER_THRESHOLD_FLOAT",
+          OBPropertyID::OB_PROP_HW_NOISE_REMOVE_FILTER_THRESHOLD_FLOAT,
+          "hardware noise remove filter threshold ,range [0.0 - 1.0]")
       .value("OB_STRUCT_BASELINE_CALIBRATION_PARAM",
              OBPropertyID::OB_STRUCT_BASELINE_CALIBRATION_PARAM,
              "Baseline calibration parameters")
@@ -245,8 +296,8 @@ void define_properties(const py::object& m) {
              OBPropertyID::OB_STRUCT_DEVICE_TEMPERATURE,
              "Device temperature information")
       .value("OB_STRUCT_TOF_EXPOSURE_THRESHOLD_CONTROL",
-             OBPropertyID::OB_STRUCT_TOF_EXPOSURE_THRESHOLD_CONTROL
-             ,"TOF exposure threshold range")
+             OBPropertyID::OB_STRUCT_TOF_EXPOSURE_THRESHOLD_CONTROL,
+             "TOF exposure threshold range")
       .value("OB_STRUCT_DEVICE_SERIAL_NUMBER",
              OBPropertyID::OB_STRUCT_DEVICE_SERIAL_NUMBER)
       .value("OB_STRUCT_DEVICE_TIME", OBPropertyID::OB_STRUCT_DEVICE_TIME)
@@ -267,6 +318,9 @@ void define_properties(const py::object& m) {
       .value("OB_STRUCT_DEPTH_AE_ROI", OBPropertyID::OB_STRUCT_DEPTH_AE_ROI)
       .value("OB_STRUCT_ASIC_SERIAL_NUMBER",
              OBPropertyID::OB_STRUCT_ASIC_SERIAL_NUMBER)
+       .value("OB_STRUCT_DISP_OFFSET_CONFIG",
+             OBPropertyID::OB_STRUCT_DISP_OFFSET_CONFIG,
+             "Disparity offset interleaving")
       .value("OB_PROP_COLOR_AUTO_EXPOSURE_BOOL",
              OBPropertyID::OB_PROP_COLOR_AUTO_EXPOSURE_BOOL)
       .value("OB_PROP_COLOR_EXPOSURE_INT",
@@ -320,6 +374,7 @@ void define_properties(const py::object& m) {
       .value("OB_PROP_SKIP_FRAME_BOOL", OBPropertyID::OB_PROP_SKIP_FRAME_BOOL)
       .value("OB_PROP_HDR_MERGE_BOOL", OBPropertyID::OB_PROP_HDR_MERGE_BOOL)
       .value("OB_PROP_COLOR_FOCUS_INT", OBPropertyID::OB_PROP_COLOR_FOCUS_INT)
+      .value("OB_PROP_IR_RECTIFY_BOOL", OBPropertyID::OB_PROP_IR_RECTIFY_BOOL)
       .value("OB_PROP_SDK_DISPARITY_TO_DEPTH_BOOL",
              OBPropertyID::OB_PROP_SDK_DISPARITY_TO_DEPTH_BOOL)
       .value("OB_PROP_SDK_DEPTH_FRAME_UNPACK_BOOL",
@@ -345,20 +400,17 @@ void define_properties(const py::object& m) {
              "Calibration JSON file read from device (Femto Mega, read only)")
       .value("OB_PROP_DEPTH_NOISE_REMOVAL_FILTER_BOOL",
              OBPropertyID::OB_PROP_DEPTH_NOISE_REMOVAL_FILTER_BOOL,
-             "depth noise removal filter")
-      .value("OB_PROP_SDK_DEPTH_RECTIFY_MG_FILTER_BOOL",
-             OBPropertyID::OB_PROP_SDK_DEPTH_RECTIFY_MG_FILTER_BOOL,
-             "depth Margin Filter");
+             "depth noise removal filter"),
 
-  py::enum_<OBPropertyType>(m, "OBPropertyType")
-      .value("OB_BOOL_PROPERTY", OBPropertyType::OB_BOOL_PROPERTY,
-             "Boolean property")
-      .value("OB_INT_PROPERTY", OBPropertyType::OB_INT_PROPERTY,
-             "Integer property")
-      .value("OB_FLOAT_PROPERTY", OBPropertyType::OB_FLOAT_PROPERTY,
-             "Float property")
-      .value("OB_STRUCT_PROPERTY", OBPropertyType::OB_STRUCT_PROPERTY,
-             "Struct property");
+      py::enum_<OBPropertyType>(m, "OBPropertyType")
+          .value("OB_BOOL_PROPERTY", OBPropertyType::OB_BOOL_PROPERTY,
+                 "Boolean property")
+          .value("OB_INT_PROPERTY", OBPropertyType::OB_INT_PROPERTY,
+                 "Integer property")
+          .value("OB_FLOAT_PROPERTY", OBPropertyType::OB_FLOAT_PROPERTY,
+                 "Float property")
+          .value("OB_STRUCT_PROPERTY", OBPropertyType::OB_STRUCT_PROPERTY,
+                 "Struct property");
 
   py::class_<OBPropertyItem>(m, "OBPropertyItem")
       .def(py::init<>())
