@@ -29,6 +29,8 @@ pip3 install -r requirements.txt
 
 ### 1.2 orbbecsdk setup
 
+<details>
+
 #### 1.2.1 安装CMake和Visual Studio
 
 此处提供推荐版本下载链接安装
@@ -64,7 +66,9 @@ pip3 install -r requirements.txt
 ![](md_images/image10.png)
 ![](md_images/image11.png)
 
-### 1.5 下载并配置与训练模型
+</details>
+
+### 1.3 下载并配置与训练模型
 
 ~~~
 python download_pretrain_model.py
@@ -74,7 +78,27 @@ python download_pretrain_model.py
 
 ### 2.1 通过orbbecsdk录制视频
 
+~~~
+python ./multi_device_sync_record.py -dn 2
+~~~
+
+参数解释
+
+-dn:摄像机的数量
+
 ### 2.2 使用rt-detr-v2对录制视频进行裁剪，提取关键动作视频片段
 
-### 2.3 使用HoT生成2D和3D骨骼和人体关节角度
+~~~
+python ./rtdetrv2_video.py -c ./rtdetrv2/configs/rtdetrv2/rtdetrv2_r18vd_sp3_120e_coco.yml -r ./rtdetrv2/best.pth -vf ./video/input/zed_test.mp4 -p
+~~~
+
+参数解释
+
+-c:模型配置文件，无需修改
+
+-r:预训练模型权重位置
+
+-vf:需要分析的视频
+
+-p:生成3D姿势，若不需要则无需添加此参数
 

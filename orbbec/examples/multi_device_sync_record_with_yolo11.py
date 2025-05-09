@@ -342,6 +342,15 @@ def main():
         # config.enable_stream(depth_profile)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         current_time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+
+        folder_path = "../../video"
+        # 判断文件夹是否存在
+        if not os.path.exists(folder_path):
+            # 不存在则创建
+            os.makedirs(folder_path)
+            print(f"文件夹 '{folder_path}' 已创建")
+        else:
+            print(f"文件夹 '{folder_path}' 已存在")
         video_writer = cv2.VideoWriter(f"../../video/yolo11_{serial_number}_1920_1080_30_{current_time}.mp4", fourcc,
                                        30,
                                        (1920, 1080))

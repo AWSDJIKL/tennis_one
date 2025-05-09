@@ -127,6 +127,7 @@ def stop_streams(pipelines: List[Pipeline]):
 def main():
     ctx = Context()
     device_list = ctx.query_devices()
+    print(device_list.get_count())
     global curr_device_cnt
     curr_device_cnt = device_list.get_count()
     if curr_device_cnt == 0:
@@ -164,6 +165,7 @@ def main():
     finally:
         stop_streams(pipelines)
         cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()

@@ -26,12 +26,12 @@ import numpy as np
 import open3d as o3d
 
 from pyorbbecsdk import *
-from utils import frame_to_bgr_image
+from orbbec.examples.utils import frame_to_bgr_image
 
 frames_queue_lock = Lock()
 
 # Configuration settings
-MAX_DEVICES = 2
+MAX_DEVICES = 4
 MAX_QUEUE_SIZE = 5
 ESC_KEY = 27
 # save_points_dir = os.path.join(os.getcwd(), "point_clouds")
@@ -43,7 +43,8 @@ stop_processing = False
 curr_device_cnt = 0
 
 # Load config file for multiple devices
-config_file_path = os.path.join(os.path.dirname(__file__), "../config/multi_device_sync_config.json")
+config_file_path = os.path.join(os.path.dirname(__file__), "./orbbec/config/multi_device_sync_config.json")
+print(config_file_path)
 multi_device_sync_config = {}
 
 
@@ -115,7 +116,7 @@ def process_frames(pipelines, video_writers: List[cv2.VideoWriter]):
                 # 将当前时间打印在帧的左上角
                 # 参数分别是：图像、文字、位置、字体、字体大小、颜色、厚度
                 color_image = cv2.putText(color_image, current_time, (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
-                                    1, (255, 255, 255), 2, cv2.LINE_AA)
+                                          1, (255, 255, 255), 2, cv2.LINE_AA)
                 video_writer.write(color_image)
                 # print("saved color image")
                 # color_filename = os.path.join(save_color_image_dir,
@@ -199,6 +200,8 @@ def main():
     configs = []
     video_writers = []
     curr_device_cnt = device_list.get_count()
+    print(curr_device_cnt)
+    # print(min(device_list.get_count(), MAX_DEVICES))
     for i in range(min(device_list.get_count(), MAX_DEVICES)):
         device = device_list.get_device_by_index(i)
         pipeline = Pipeline(device)
@@ -228,7 +231,16 @@ def main():
         # config.enable_stream(depth_profile)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         current_time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-        video_writer = cv2.VideoWriter(f"../../video/{serial_number}_1920_1080_30_{current_time}.mp4", fourcc, 30, (1920, 1080))
+        folder_path = "./video/input"
+        # 判断文件夹是否存在
+        if not os.path.exists(folder_path):
+            # 不存在则创建
+            os.makedirs(folder_path)
+            print(f"文件夹 '{folder_path}' 已创建")
+        else:
+            print(f"文件夹 '{folder_path}' 已存在")
+        video_writer = cv2.VideoWriter(f"./video/input/{serial_number}_1920_1080_30_{current_time}.mp4", fourcc, 30,
+                                       (1920, 1080))
         video_writers.append(video_writer)
         pipelines.append(pipeline)
         configs.append(config)
@@ -245,4 +257,10 @@ def main():
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-dn', '--device_num', type=int, default=1)
+    args = parser.parse_args()
     main()

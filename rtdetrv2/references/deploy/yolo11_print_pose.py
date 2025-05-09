@@ -4,7 +4,7 @@ import os
 import cv2
 import torch
 import numpy as np
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from tqdm import tqdm
 from tqdm.contrib import tzip
@@ -14,16 +14,22 @@ from PIL import Image
 import glob
 import copy
 import sys
+from pathlib import Path
+
+current_dir = Path(__file__).parent.absolute()
+sys.path.append(str(current_dir))
 sys.path.append(os.getcwd())
 from common.utils import *
 from common.camera import *
 from model.mixste.hot_mixste import Model
 from lib.preprocess import h36m_coco_format, revise_kpts
 from lib.hrnet.gen_kpts import gen_video_kpts as hrnet_pose
+
 # from panel.tests.manual.models import video
 # from dask.dataframe.tests.test_categorical import frames
 print(os.getcwd())
 
+INFOWEIGHT = 130
 point_id_dict = {
     0: "鼻子",
     1: "左眼",
@@ -64,13 +70,14 @@ def calculate_3d_angle(a, b, c):
 
 def show2Dpose(kps, img):
     colors = [
+        # BGR
         (255, 0, 0),  # 头到肩部
         (0, 255, 0),  # 左手
         (0, 0, 255),  # 右手
-        (255, 255, 0),  # 身体
+        (46, 94, 142),  # 身体
         (255, 0, 255),  # 左腿
         (0, 255, 255)  # 右腿
-        ] 
+    ]
 
     connections = [[0, 5], [0, 6], [5, 6],
                    [5, 7], [7, 9],
@@ -80,8 +87,12 @@ def show2Dpose(kps, img):
 
     LR = [1, 1, 4, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6]
 
-    thickness = 3
-
+    thickness = 1
+    radius = 2
+    height, width, _ = img.shape
+    # 创建一个与原图高相同、宽为rectangle_width且颜色为白色的图像
+    white_rect = 255 * np.ones((height, INFOWEIGHT, 3), dtype=np.uint8)
+    img = np.hstack((img, white_rect))
     for j, c in enumerate(connections):
         # print(kps.shape)
         if kps[c[0]][0] == 0 and kps[c[0]][1] == 0:
@@ -93,18 +104,18 @@ def show2Dpose(kps, img):
         start = list(start)
         end = list(end)
         cv2.line(img, (start[0], start[1]), (end[0], end[1]), colors[LR[j] - 1], thickness)
-        cv2.circle(img, (start[0], start[1]), thickness=-1, color=colors[LR[j] - 1], radius=3)
-        cv2.circle(img, (end[0], end[1]), thickness=-1, color=colors[LR[j] - 1], radius=3)
+        cv2.circle(img, (start[0], start[1]), thickness=-1, color=colors[LR[j] - 1], radius=radius)
+        cv2.circle(img, (end[0], end[1]), thickness=-1, color=colors[LR[j] - 1], radius=radius)
 
     # 定义需要计算角度的关节三元组
     angle_joints = [
-        (5, 7, 9, "L_Elbow"),  # 左肘
-        (6, 8, 10, "R_Elbow"),  # 右肘
-        (11, 13, 15, "L_Knee"),  # 左膝
-        (12, 14, 16, "R_Knee")  # 右膝
+        (5, 7, 9, "L Elbow"),  # 左肘
+        (6, 8, 10, "R Elbow"),  # 右肘
+        (11, 13, 15, "L Knee"),  # 左膝
+        (12, 14, 16, "R Knee")  # 右膝
     ]
-
-    for joint in angle_joints:
+    angles = []
+    for i, joint in enumerate(angle_joints):
         a_idx, b_idx, c_idx, label = joint
         a = np.array(kps[a_idx][:2])
         b = np.array(kps[b_idx][:2])
@@ -119,23 +130,35 @@ def show2Dpose(kps, img):
         # if scores is not None:
         #     if scores[a_idx] < conf_threshold or scores[b_idx] < conf_threshold or scores[c_idx] < conf_threshold:
         #         continue
-        
+
         # 计算角度
         angle = calculate_angle(a, b, c)
-        
+        angles.append(angle)
         # 在图像上标注角度（以B点为中心）
-        text_pos = (int(b[0]), int(b[1] - 10))  # 在关节点上方显示
+        # text_pos = (int(b[0]), int(b[1] - 10))  # 在关节点上方显示
+        # cv2.putText(
+        #     img,
+        #     f"{joint[-1]}{angle:.1f}",
+        #     text_pos,
+        #     cv2.FONT_HERSHEY_SIMPLEX,
+        #     0.5,
+        #     (255, 0, 0),  # 蓝色字体
+        #     2
+        # )
+
+        text_pos = (int(width), int((i + 1) * 0.2 * height))
         cv2.putText(
             img,
-            f"{joint[-1]}{angle:.1f}",
+            f"{joint[-1]} {angle:.1f}",
             text_pos,
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (255, 0, 0),  # 蓝色字体
-            2
+            1
         )
 
-    return img
+    return img, angles
+
 
 # def show3Dpose(vals, ax, fix_z):
 #     ax.view_init(elev=15., azim=70)
@@ -199,15 +222,15 @@ def show2Dpose(kps, img):
 #         a = vals[a_idx]
 #         b = vals[b_idx]
 #         c = vals[c_idx]
-        
+
 #         # # 检查置信度（如果可用）
 #         # if scores is not None:
 #         #     if scores[a_idx] < conf_threshold or scores[b_idx] < conf_threshold or scores[c_idx] < conf_threshold:
 #         #         continue
-        
+
 #         # 计算3D角度
 #         angle = calculate_3d_angle(a, b, c)
-        
+
 #         # 在3D空间中标注角度（以b点为中心）
 #         text_pos = (b[0], b[1], b[2] + 0.1)  # 在关节点上方偏移
 #         ax.text(
@@ -281,10 +304,10 @@ def show2Dpose(kps, img):
 #         combined = Image.new('RGB', (img_2d.size[0] + img_3d.size[0], img_2d.size[1]))
 #         combined.paste(img_2d, (0, 0))
 #         combined.paste(img_3d, (img_2d.size[0], 0))
-        
+
 #         # 转换为OpenCV格式（BGR）
 #         frame = cv2.cvtColor(np.array(combined), cv2.COLOR_RGB2BGR)
-        
+
 #         # 写入视频
 #         videoWrite.write(frame)
 
@@ -316,7 +339,7 @@ def show2Dpose(kps, img):
 #     state_dict = {k: v for k, v in pre_dict.items() if k in model_dict.keys()}
 #     model_dict.update(state_dict)
 #     model.load_state_dict(model_dict)
-  
+
 #     model.eval()
 
 #     # # input
@@ -348,7 +371,7 @@ def show2Dpose(kps, img):
 #             input_2D_no = np.pad(keypoints[0][low_index:high_index], ((pad_left, pad_right), (0, 0), (0, 0)), 'edge')
 #         else:
 #             input_2D_no = keypoints[0][low_index:high_index]
-        
+
 #         # joints_left = [4, 5, 6, 11, 12, 13]
 #         # joints_right = [1, 2, 3, 14, 15, 16]
 
@@ -361,7 +384,7 @@ def show2Dpose(kps, img):
 #         input_2D_aug[:,:, 0] *= -1
 #         input_2D_aug[:, joints_left + joints_right] = input_2D_aug[:, joints_right + joints_left]
 #         input_2D = np.concatenate((np.expand_dims(input_2D, axis=0), np.expand_dims(input_2D_aug, axis=0)), 0)
-        
+
 #         input_2D = input_2D[np.newaxis,:,:,:,:]
 
 #         input_2D = torch.from_numpy(input_2D.astype('float32')).cuda()
@@ -432,7 +455,7 @@ def show2Dpose(kps, img):
 #             plt.savefig(output_dir_3D + str(('%04d' % j)) + '_3D.png', dpi=200, format='png', bbox_inches='tight')
 
 #         frame_sum = high_index
-    
+
 #     # # save 3D keypoints
 #     os.makedirs(output_dir + 'output_3D/', exist_ok=True)
 #     output_npz = output_dir + 'output_3D/' + 'output_keypoints_3d.npz'
@@ -477,8 +500,8 @@ def show2Dpose(kps, img):
 #     #     plt.close()
 
 
-def get_yolo11_keypoints(video_path):
-    model = YOLO("yolo11x-pose.pt", "pose")  # load a pretrained model (recommended for training)
+def get_yolo11_keypoints(video_path, yolo_model_path="yolo11x-pose.pt"):
+    model = YOLO(yolo_model_path, "pose")  # load a pretrained model (recommended for training)
     # 使用opencv逐帧读取视频
     cap = cv2.VideoCapture(video_path)
     # 获取视频的宽度和高度
@@ -503,8 +526,8 @@ def get_yolo11_keypoints(video_path):
 
         # 遍历keypoints，如果有关键点坐标为0，说明有一些点检测不到，放弃这一帧
         k_id = [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-        print("keypoints: ", keypoints)
-        print("keypoints shape: ", keypoints.shape)
+        # print("keypoints: ", keypoints)
+        # print("keypoints shape: ", keypoints.shape)
         flag = False
         for i in k_id:
             if not keypoints[i][0] > 0 and not keypoints[i][1] > 0:

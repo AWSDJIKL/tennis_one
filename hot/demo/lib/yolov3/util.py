@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import cv2
 import os.path as osp
-from lib.yolov3.bbox import bbox_iou
+from ...lib.yolov3.bbox import bbox_iou
 
 
 def get_path(cur_file):

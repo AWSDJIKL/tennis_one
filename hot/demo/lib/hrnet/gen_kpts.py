@@ -14,20 +14,22 @@ import torch
 import torch.backends.cudnn as cudnn
 import cv2
 import copy
+# from pathlib import Path
+# current_dir = Path(__file__).parent.absolute()
+# sys.path.append(os.path.join(os.getcwd(), "hot/demo"))
+from ...lib.hrnet.lib.utils.utilitys import plot_keypoint, PreProcess, write, load_json
+from ...lib.hrnet.lib.config import cfg, update_config
+from ...lib.hrnet.lib.utils.transforms import *
+from ...lib.hrnet.lib.utils.inference import get_final_preds
+from ...lib.hrnet.lib.models import pose_hrnet
 
-from lib.hrnet.lib.utils.utilitys import plot_keypoint, PreProcess, write, load_json
-from lib.hrnet.lib.config import cfg, update_config
-from lib.hrnet.lib.utils.transforms import *
-from lib.hrnet.lib.utils.inference import get_final_preds
-from lib.hrnet.lib.models import pose_hrnet
-
-cfg_dir = 'demo/lib/hrnet/experiments/'
-model_dir = 'demo/lib/checkpoint/'
+cfg_dir = 'hot/demo/lib/hrnet/experiments/'
+model_dir = 'hot/demo/lib/checkpoint/'
 
 # Loading human detector model
-from lib.yolov3.human_detector import load_model as yolo_model
-from lib.yolov3.human_detector import yolo_human_det as yolo_det
-from lib.sort.sort import Sort
+from ...lib.yolov3.human_detector import load_model as yolo_model
+from ...lib.yolov3.human_detector import yolo_human_det as yolo_det
+from ...lib.sort.sort import Sort
 
 
 def parse_args():
