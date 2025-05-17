@@ -1,6 +1,3 @@
-"""Copyright(c) 2023 lyuwenyu. All Rights Reserved.
-"""
-
 import torch
 import torch.nn as nn
 import torchvision.transforms as T
@@ -15,7 +12,6 @@ from tqdm import tqdm
 import torchreid
 from sklearn.cluster import DBSCAN
 from rtdetrv2.references.deploy.yolo11_print_pose import *
-import vis
 from datetime import datetime
 
 class_names = [
@@ -90,16 +86,16 @@ def extract_box(frame: Image, labels, boxes, scores, max_size, thrh=0.6):
     # args.box_padding_rate = 0.4
     box_height = box[2] - box[0]
     box_width = box[3] - box[1]
-    x1 = max(float(box[0] - box_width * args.box_padding_rate), 0)
-    y1 = max(float(box[1] - box_height * args.box_padding_rate), 0)
-    x2 = min(float(box[2] + box_width * args.box_padding_rate), frame.size[0])
-    y2 = min(float(box[3] + box_height * args.box_padding_rate), frame.size[1])
+    x1 = max(int(box[0] - box_width * args.box_padding_rate), 0)
+    y1 = max(int(box[1] - box_height * args.box_padding_rate), 0)
+    x2 = min(int(box[2] + box_width * args.box_padding_rate), frame.size[0])
+    y2 = min(int(box[3] + box_height * args.box_padding_rate), frame.size[1])
 
     frame = frame.crop((x1, y1, x2, y2))
     iw, ih = frame.size
     if iw > max_size[0] or ih > max_size[1]:
         max_size = (iw, ih)
-    return frame, max_size
+    return frame, max_size, (x1, y1, x2, y2)
     black_bg = Image.new('RGB', video_size, color='black')
     bw, bh = black_bg.size
     iw, ih = frame.size
@@ -110,10 +106,13 @@ def extract_box(frame: Image, labels, boxes, scores, max_size, thrh=0.6):
     black_bg.paste(frame, paste_position)
 
     frame = cv2.cvtColor(np.array(black_bg), cv2.COLOR_RGB2BGR)
-    return frame, max_size
+    return frame, max_size, (x1, y1, x2, y2)
 
 
 def paste_frame(frame_list: list[Image], max_size):
+    '''
+    将裁剪后的画面加上一个黑色背景，因为裁剪后的画面大小不一致
+    '''
     f_list = []
     for f in frame_list:
         black_bg = Image.new('RGB', max_size, color='black')
@@ -211,7 +210,9 @@ def main(args, video_file):
     print(f"视频宽度: {w}, 视频高度: {h}")
     video_name = os.path.basename(video_file)
     video_writer = cv2.VideoWriter(os.path.join(output_dir, video_name), cv2.VideoWriter_fourcc(*'mp4v'), 30, (w, h))
+    origin_frame_list = []
     crop_image_list = []
+    box_list = []
     max_size = (0, 0)
 
     # crop_video_writer = cv2.VideoWriter(os.path.join("video/output", "crop_" + video_name), cv2.VideoWriter_fourcc(*'mp4v'), 30, (w, h))
@@ -232,8 +233,12 @@ def main(args, video_file):
         # 标注边框和动作分类
         draw(frame, labels, boxes, scores, video_writer, draw_boxes=False)
 
-        f, max_size = extract_box(frame, labels, boxes, scores, max_size)
-        crop_image_list.append(f)
+        crop_frame, max_size, box = extract_box(frame, labels, boxes, scores, max_size)
+        # frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+        # crop_frame = cv2.cvtColor(np.array(crop_frame), cv2.COLOR_RGB2BGR)
+        origin_frame_list.append(frame)
+        crop_image_list.append(crop_frame)
+        box_list.append(box)
         ret, frame = cap.read()
         if not ret:
             break
@@ -245,10 +250,10 @@ def main(args, video_file):
     features = extract_features(osnet_model, crop_image_list)
     labels = cluster_images(features, threshold=0.2)
     groups = {}
-    for img_path, label in zip(crop_image_list, labels):
+    for (or_img, img, box), label in zip(zip(origin_frame_list, crop_image_list, box_list), labels):
         if label not in groups:
             groups[label] = []
-        groups[label].append(img_path)
+        groups[label].append((or_img, img, box))
     # print("groups: ", groups.keys())
     main_id = 0
     max_count = 0
@@ -256,24 +261,29 @@ def main(args, video_file):
         if len(imgs) > max_count:
             max_count = len(imgs)
             main_id = group_id
-    crop_image_list = groups[main_id]
+    or_img_img_box = groups[main_id]
+    origin_frame_list = [or_img for or_img, _, _ in or_img_img_box]
+    crop_image_list = [img for _, img, _ in or_img_img_box]
+    box_list = [box for _, _, box in or_img_img_box]
 
-    crop_video_writer = cv2.VideoWriter(os.path.join(output_dir, "crop_" + video_name), cv2.VideoWriter_fourcc(*'mp4v'),
-                                        30, max_size)
-    crop_image_list = paste_frame(crop_image_list, max_size)
-    for f in tqdm(crop_image_list):
-        crop_video_writer.write(f)
-    crop_video_writer.release()
-    vis.main(os.path.join(output_dir, "crop_" + video_name), args)
-
-    # video_path = os.path.join(output_dir, "crop_" + video_name)
-    # frames, keypoints, w, h = get_yolo11_keypoints(video_path)
-    # output_video = cv2.VideoWriter(os.path.join(output_dir, "yolo11_crop" + video_name),
-    #                                cv2.VideoWriter_fourcc(*'mp4v'), 30, (w + INFOWEIGHT, h))
-    # for f, k in tzip(frames, keypoints):
-    #     f = show2Dpose(k, f)
-    #     output_video.write(f)
-    # output_video.release()
+    video_name = os.path.basename(video_file)
+    video_writer = cv2.VideoWriter(os.path.join(output_dir, video_name), cv2.VideoWriter_fourcc(*'mp4v'), 30, (w, h))
+    all_keypoints = []
+    model = YOLO("yolo11x-pose.pt", "pose")  # load a pretrained model (recommended for training)
+    for i, frame in enumerate(crop_image_list):
+        kps = get_one_frame_yolo11_keypoints(frame, model)
+        if kps is not None:
+            all_keypoints.append(kps)
+            # 根据box复原图像
+            x1, y1, x2, y2 = box_list[i]
+            origin_frame_list[i] = cv2.cvtColor(np.array(origin_frame_list[i]), cv2.COLOR_RGB2BGR)
+            frame = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+            origin_frame_list[i][int(y1):int(y2), int(x1):int(x2), :] = show2Dpose(kps, frame)
+            video_writer.write(origin_frame_list[i])
+    video_writer.release()
+    output_dir = "./video/output"
+    video_name = os.path.basename(video_file)
+    show_angle(os.path.join(output_dir, video_name), all_keypoints)
 
 
 if __name__ == '__main__':

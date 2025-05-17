@@ -46,6 +46,7 @@ curr_device_cnt = 0
 config_file_path = os.path.join(os.path.dirname(__file__), "./orbbec/config/multi_device_sync_config.json")
 print(config_file_path)
 multi_device_sync_config = {}
+video_writers = []
 
 
 def convert_to_o3d_point_cloud(points, colors=None):
@@ -89,23 +90,25 @@ def sync_mode_from_str(sync_mode_str: str) -> OBMultiDeviceSyncMode:
 
 
 # Frame processing and saving
-def process_frames(pipelines, video_writers: List[cv2.VideoWriter]):
+def process_frames(pipelines: List[Pipeline], serial_numbers: List[str]):
     global frames_queue
     global stop_processing
     global curr_device_cnt, save_points_dir, save_depth_image_dir, save_color_image_dir
+    global video_writers
+    start_time = time.time()
     while not stop_processing:
         now = time.time()
         for device_index in range(curr_device_cnt):
             with frames_queue_lock:
                 frames = frames_queue[device_index].get() if not frames_queue[device_index].empty() else None
             if frames is None:
-                print(f"Device {device_index} has no frames")
+                # print(f"Device {device_index} has no frames")
                 continue
             color_frame = frames.get_color_frame() if frames else None
             # depth_frame = frames.get_depth_frame() if frames else None
             pipeline = pipelines[device_index]
             video_writer = video_writers[device_index]
-            print(f"Device {device_index} frames")
+            # print(f"Device {device_index} frames")
 
             if color_frame:
                 color_image = frame_to_bgr_image(color_frame)
@@ -122,6 +125,19 @@ def process_frames(pipelines, video_writers: List[cv2.VideoWriter]):
                 # color_filename = os.path.join(save_color_image_dir,
                 #                               f"color_{device_index}_{color_frame.get_timestamp()}.png")
                 # cv2.imwrite(color_filename, color_image)
+        if now - start_time > args.divide_time:
+            # 更换视频文件重新录制
+            for i, videowriter in enumerate(video_writers):
+                videowriter.release()
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                current_time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+                folder_path = args.sd
+                video_writers[i] = cv2.VideoWriter(
+                    os.path.join(folder_path, f"{serial_numbers[i]}_1920_1080_30_{current_time}.mp4"),
+                    fourcc, 30,
+                    (1920, 1080))
+            print(current_time, "      start a new record file")
+            start_time = time.time()
 
             # if depth_frame:
             #     timestamp = depth_frame.get_timestamp()
@@ -190,6 +206,7 @@ def stop_streams(pipelines: List[Pipeline], video_writers: List[cv2.VideoWriter]
 # Main function for setup and teardown
 def main():
     global curr_device_cnt
+    global video_writers
     read_config(config_file_path)
     ctx = Context()
     device_list = ctx.query_devices()
@@ -198,7 +215,7 @@ def main():
         return
     pipelines = []
     configs = []
-    video_writers = []
+    serial_numbers = []
     curr_device_cnt = device_list.get_count()
     print(curr_device_cnt)
     # print(min(device_list.get_count(), MAX_DEVICES))
@@ -231,7 +248,7 @@ def main():
         # config.enable_stream(depth_profile)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         current_time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-        folder_path = "./video/input"
+        folder_path = args.sd
         # 判断文件夹是否存在
         if not os.path.exists(folder_path):
             # 不存在则创建
@@ -239,15 +256,16 @@ def main():
             print(f"文件夹 '{folder_path}' 已创建")
         else:
             print(f"文件夹 '{folder_path}' 已存在")
-        video_writer = cv2.VideoWriter(f"./video/input/{serial_number}_1920_1080_30_{current_time}.mp4", fourcc, 30,
+        video_writer = cv2.VideoWriter(f"{folder_path}/{serial_number}_1920_1080_30_{current_time}.mp4", fourcc, 30,
                                        (1920, 1080))
+        serial_numbers.append(serial_number)
         video_writers.append(video_writer)
         pipelines.append(pipeline)
         configs.append(config)
     start_streams(pipelines, configs)
     global stop_processing
     try:
-        process_frames(pipelines, video_writers)
+        process_frames(pipelines, serial_numbers)
     except KeyboardInterrupt:
         print("Interrupted by user")
         stop_processing = True
@@ -260,7 +278,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-
-    parser.add_argument('-dn', '--device_num', type=int, default=1)
+    # parser.add_argument("--sd", "--save_dir", type=str, default="./video/input")
+    parser.add_argument("--sd", "--save_dir", type=str, default="./video/input")
+    parser.add_argument('-dn', '--device_num', type=int, default=2)
+    parser.add_argument('-dt', '--divide_time', type=int, default=10)
     args = parser.parse_args()
     main()

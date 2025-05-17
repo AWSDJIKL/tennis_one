@@ -7,6 +7,7 @@ import copy
 import torch
 import argparse
 import numpy as np
+from PIL.ImageSequence import all_frames
 from tqdm import tqdm
 from hot.demo.lib.preprocess import h36m_coco_format, revise_kpts
 from hot.demo.lib.hrnet.gen_kpts import gen_video_kpts as hrnet_pose
@@ -77,6 +78,13 @@ hrnet_yolo_calculate_map = [
     # 额头和脖子连线的中点
     [9, (10, 8), "嘴巴"],
 
+]
+
+suggest_angle_range = [
+    (90, 180),  # 左肘
+    (90, 180),  # 右肘
+    (90, 170),  # 左膝
+    (90, 170)  # 右膝
 ]
 
 
@@ -367,7 +375,7 @@ def get_pose2D(video_path, output_dir):
     # keypoints, scores, valid_frames = h36m_coco_format(keypoints, scores)
     # re_kpts = revise_kpts(keypoints, scores, valid_frames)
 
-    frame_list, keypoints, width, height = get_yolo11_keypoints(video_path)
+    frame_list, keypoints, width, height = get_video_yolo11_keypoints(video_path)
     # 覆盖原来的视频，因为有一些帧获取不到骨骼，需要抛弃
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 编码格式，常见有 mp4v、XVID 等
     cap = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
@@ -731,10 +739,10 @@ def gen_2d_video(video_path, output_dir):
     cap = cv2.VideoCapture(video_path)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    print('width: {}, height: {}'.format(width, height))
     fps = cap.get(cv2.CAP_PROP_FPS)
-    video_name = video_path.split('/')[-1].split('.')[0]
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    video_writer = cv2.VideoWriter(output_dir + video_name + '.mp4', fourcc, fps, (width, height))
+    video_name = os.path.basename(video_path).split('.')[0]
+
     img_list = []
     while True:
         ret, frame = cap.read()
@@ -743,21 +751,81 @@ def gen_2d_video(video_path, output_dir):
             break
         img_list.append(frame)
     cap.release()
+    all_angles = []
+    all_frames = []
     for i, img in enumerate(img_list):
         image, angles = show2Dpose(keypoints[0][i], img)
-        video_writer.write(image)
+        all_frames.append(image)
+        all_angles.append(angles)
+        # video_writer.write(image)
+    # 计算出4个关节的角度的最大值与最小值，并把范围写进每一帧
+    colors = [
+        (0, 155, 0),  # 左肘
+        (0, 0, 155),  # 右肘
+        (255, 0, 255),  # 左膝
+        (0, 255, 255)  # 右膝
+    ]
+    # 初始化最大值和最小值列表
+    max_values = [float('-inf')] * 4
+    min_values = [float('inf')] * 4
+
+    # 遍历每个关节角度列表
+    for angles in all_angles:
+        for i in range(4):
+            if angles[i] > max_values[i]:
+                max_values[i] = angles[i]
+            if angles[i] < min_values[i]:
+                min_values[i] = angles[i]
+    for i, text_color in enumerate(colors):
+        text_pos = (int(width), int((i * 3 + 2) * (1 / 15) * height))
+        srt_pos = (int(width), int((i * 3 + 3) * (1 / 15) * height))
+        srt_color = (0, 255, 0) if min_values[i] > suggest_angle_range[i][0] and max_values[i] < suggest_angle_range[i][
+            1] else (0, 0, 255)
+        for img in all_frames:
+            cv2.putText(
+                img,
+                f"Your Angle Range:({min_values[i]:.1f} {max_values[i]:.1f})",
+                text_pos,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                text_color,
+                1
+            )
+            cv2.putText(
+                img,
+                f"Suggest Angle Range:({suggest_angle_range[i][0]:.1f} {suggest_angle_range[i][1]:.1f})",
+                srt_pos,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                srt_color,
+                1
+            )
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    print('width: {}, height: {}'.format(all_frames[0].shape[1], all_frames[0].shape[0]))
+    video_writer = cv2.VideoWriter(output_dir + video_name + '_2D.mp4', fourcc, fps,
+                                   (all_frames[0].shape[1], all_frames[0].shape[0]))
+    print(output_dir + video_name + '_2D.mp4')
+    for img in all_frames:
+        video_writer.write(img)
     video_writer.release()
 
 
 def main(video_path, args):
-    video_name = video_path.split('/')[-1].split('.')[0]
+    print("video_path", video_path)
+    video_name = os.path.basename(video_path).split('.')[0]
+    print("video_name", video_name)
     output_dir = './video/hot_demo_' + video_name + '/'
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir, exist_ok=True)
     get_pose2D(video_path, output_dir)
-    get_pose3D(video_path, output_dir, args.fix_z)
-    img2video(video_path, output_dir)
+    if args.p:
+        get_pose3D(video_path, output_dir, args.fix_z)
+        img2video(video_path, output_dir)
+    else:
+        gen_2d_video(video_path, output_dir)
+
+    print('Generating demo successfully!')
 
 
 if __name__ == "__main__":
@@ -765,7 +833,7 @@ if __name__ == "__main__":
     parser.add_argument('--video', type=str, default='./video/output/crop_zed_test.mp4', help='input video')
     parser.add_argument('--gpu', type=str, default='0', help='input video')
     parser.add_argument('--fix_z', action='store_true', help='fix z axis')
-    parser.add_argument('--p', action='store_true', help='create 3D')
+    parser.add_argument('--p', type=lambda x: x.lower() == 'true', default=False, help='create 3D')
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
@@ -779,7 +847,8 @@ if __name__ == "__main__":
     get_pose2D(video_path, output_dir)
     if args.p:
         get_pose3D(video_path, output_dir, args.fix_z)
+        img2video(video_path, output_dir)
     else:
         gen_2d_video(video_path, output_dir)
-    img2video(video_path, output_dir)
+
     print('Generating demo successfully!')

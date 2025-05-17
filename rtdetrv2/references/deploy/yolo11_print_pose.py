@@ -29,7 +29,7 @@ from lib.hrnet.gen_kpts import gen_video_kpts as hrnet_pose
 # from dask.dataframe.tests.test_categorical import frames
 print(os.getcwd())
 
-INFOWEIGHT = 130
+INFOWEIGHT = 400
 point_id_dict = {
     0: "鼻子",
     1: "左眼",
@@ -48,6 +48,19 @@ point_id_dict = {
     14: "右膝",
     15: "左脚踝",
     16: "右脚踝", }
+
+angle_joints = [
+    (5, 7, 9, "L Elbow", (0, 155, 0)),  # 左肘
+    (6, 8, 10, "R Elbow", (0, 0, 155)),  # 右肘
+    (11, 13, 15, "L Knee", (255, 0, 255)),  # 左膝
+    (12, 14, 16, "R Knee", (0, 255, 255))  # 右膝
+]
+suggest_angle_range = [
+    (90, 150),  # 左肘
+    (90, 150),  # 右肘
+    (90, 150),  # 左膝
+    (90, 150)  # 右膝
+]
 
 
 def calculate_angle(a, b, c):
@@ -72,8 +85,8 @@ def show2Dpose(kps, img):
     colors = [
         # BGR
         (255, 0, 0),  # 头到肩部
-        (0, 255, 0),  # 左手
-        (0, 0, 255),  # 右手
+        (185, 218, 255),  # 左手
+        (238, 238, 174),  # 右手
         (46, 94, 142),  # 身体
         (255, 0, 255),  # 左腿
         (0, 255, 255)  # 右腿
@@ -90,9 +103,9 @@ def show2Dpose(kps, img):
     thickness = 1
     radius = 2
     height, width, _ = img.shape
-    # 创建一个与原图高相同、宽为rectangle_width且颜色为白色的图像
-    white_rect = 255 * np.ones((height, INFOWEIGHT, 3), dtype=np.uint8)
-    img = np.hstack((img, white_rect))
+    # # 创建一个与原图高相同、宽为rectangle_width且颜色为白色的图像
+    # white_rect = 255 * np.ones((height, INFOWEIGHT, 3), dtype=np.uint8)
+    # img = np.hstack((img, white_rect))
     for j, c in enumerate(connections):
         # print(kps.shape)
         if kps[c[0]][0] == 0 and kps[c[0]][1] == 0:
@@ -107,57 +120,58 @@ def show2Dpose(kps, img):
         cv2.circle(img, (start[0], start[1]), thickness=-1, color=colors[LR[j] - 1], radius=radius)
         cv2.circle(img, (end[0], end[1]), thickness=-1, color=colors[LR[j] - 1], radius=radius)
 
-    # 定义需要计算角度的关节三元组
-    angle_joints = [
-        (5, 7, 9, "L Elbow"),  # 左肘
-        (6, 8, 10, "R Elbow"),  # 右肘
-        (11, 13, 15, "L Knee"),  # 左膝
-        (12, 14, 16, "R Knee")  # 右膝
-    ]
-    angles = []
-    for i, joint in enumerate(angle_joints):
-        a_idx, b_idx, c_idx, label = joint
-        a = np.array(kps[a_idx][:2])
-        b = np.array(kps[b_idx][:2])
-        c = np.array(kps[c_idx][:2])
-        if a[0] == 0 and a[1] == 0:
-            continue
-        if b[0] == 0 and b[1] == 0:
-            continue
-        if c[0] == 0 and c[1] == 0:
-            continue
-        # # 检查置信度（如果scores可用）
-        # if scores is not None:
-        #     if scores[a_idx] < conf_threshold or scores[b_idx] < conf_threshold or scores[c_idx] < conf_threshold:
-        #         continue
+    # # 定义需要计算角度的关节三元组
+    # angle_joints = [
+    #     (5, 7, 9, "L Elbow", (0, 155, 0)),  # 左肘
+    #     (6, 8, 10, "R Elbow", (0, 0, 155)),  # 右肘
+    #     (11, 13, 15, "L Knee", (255, 0, 255)),  # 左膝
+    #     (12, 14, 16, "R Knee", (0, 255, 255))  # 右膝
+    # ]
+    # angles = []
+    # for i, joint in enumerate(angle_joints):
+    #     a_idx, b_idx, c_idx, label, text_color = joint
+    #     a = np.array(kps[a_idx][:2])
+    #     b = np.array(kps[b_idx][:2])
+    #     c = np.array(kps[c_idx][:2])
+    #     if a[0] == 0 and a[1] == 0:
+    #         continue
+    #     if b[0] == 0 and b[1] == 0:
+    #         continue
+    #     if c[0] == 0 and c[1] == 0:
+    #         continue
+    #     # # 检查置信度（如果scores可用）
+    #     # if scores is not None:
+    #     #     if scores[a_idx] < conf_threshold or scores[b_idx] < conf_threshold or scores[c_idx] < conf_threshold:
+    #     #         continue
+    #
+    #     # 计算角度
+    #     angle = calculate_angle(a, b, c)
+    #     angles.append(angle)
+    #     # 在图像上标注角度（以B点为中心）
+    #     # text_pos = (int(b[0]), int(b[1] - 10))  # 在关节点上方显示
+    #     # cv2.putText(
+    #     #     img,
+    #     #     f"{joint[-1]}{angle:.1f}",
+    #     #     text_pos,
+    #     #     cv2.FONT_HERSHEY_SIMPLEX,
+    #     #     0.5,
+    #     #     (255, 0, 0),  # 蓝色字体
+    #     #     2
+    #     # )
+    #
+    #     text_pos = (int(width), int((i * 3 + 1) * (1 / 15) * height))
+    #     cv2.putText(
+    #         img,
+    #         f"{joint[3]} {angle:.1f}",
+    #         text_pos,
+    #         cv2.FONT_HERSHEY_SIMPLEX,
+    #         0.5,
+    #         text_color,
+    #         1
+    #     )
 
-        # 计算角度
-        angle = calculate_angle(a, b, c)
-        angles.append(angle)
-        # 在图像上标注角度（以B点为中心）
-        # text_pos = (int(b[0]), int(b[1] - 10))  # 在关节点上方显示
-        # cv2.putText(
-        #     img,
-        #     f"{joint[-1]}{angle:.1f}",
-        #     text_pos,
-        #     cv2.FONT_HERSHEY_SIMPLEX,
-        #     0.5,
-        #     (255, 0, 0),  # 蓝色字体
-        #     2
-        # )
-
-        text_pos = (int(width), int((i + 1) * 0.2 * height))
-        cv2.putText(
-            img,
-            f"{joint[-1]} {angle:.1f}",
-            text_pos,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (255, 0, 0),  # 蓝色字体
-            1
-        )
-
-    return img, angles
+    # return img, angles
+    return img
 
 
 # def show3Dpose(vals, ax, fix_z):
@@ -499,8 +513,198 @@ def show2Dpose(kps, img):
 #     #     plt.savefig(output_dir_pose + str(('%04d' % i)) + '_pose.png', dpi=200, bbox_inches='tight')
 #     #     plt.close()
 
+def show_angle(video_path, kps):
+    '''
+    接收已经画好骨骼的视频（默认1080P或以上），在画面右上角画一个400*400的白色0.5透明度的矩形
+    上方画出4个圆形打分，代表4个关键关节
+    每个圆形下方显示对应关节有多少百分比的时间角度大于/小于推荐关节角度范围
+    '''
+    # 使用opencv逐帧读取视频
+    cap = cv2.VideoCapture(video_path)
+    # 获取视频的宽度和高度
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    # 获取视频的帧率
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    # 定义需要计算角度的关节三元组
+    all_angles = []
+    all_frames = []
+    # 读取每一帧
+    j = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        # 计算这一帧的角度
+        angles = []
+        for i, joint in enumerate(angle_joints):
+            a_idx, b_idx, c_idx, label, text_color = joint
+            a = np.array(kps[j][a_idx][:2])
+            b = np.array(kps[j][b_idx][:2])
+            c = np.array(kps[j][c_idx][:2])
+            # if a[0] == 0 and a[1] == 0:
+            #     continue
+            # if b[0] == 0 and b[1] == 0:
+            #     continue
+            # if c[0] == 0 and c[1] == 0:
+            #     continue
+            # # 检查置信度（如果scores可用）
+            # if scores is not None:
+            #     if scores[a_idx] < conf_threshold or scores[b_idx] < conf_threshold or scores[c_idx] < conf_threshold:
+            #         continue
 
-def get_yolo11_keypoints(video_path, yolo_model_path="yolo11x-pose.pt"):
+            # 计算角度
+            angle = calculate_angle(a, b, c).tolist()
+            angles.append(angle)
+        all_angles.append(angles)
+        all_frames.append(frame)
+        j += 1
+    # 初始化超出范围的计数器
+    out_of_range_less_counts = np.zeros(len(angle_joints))
+    out_of_range_greater_counts = np.zeros(len(angle_joints))
+    for angles in all_angles:
+        for i, (min_angle, max_angle) in enumerate(suggest_angle_range):
+            if angles[i] < min_angle:
+                out_of_range_less_counts[i] += 1
+            elif angles[i] > max_angle:
+                out_of_range_greater_counts[i] += 1
+    # 计算百分比
+    percentages_less = out_of_range_less_counts / len(all_angles)
+    percentages_greater = out_of_range_greater_counts / len(all_angles)
+    rect_width = 600
+    rect_height = 400
+    rect_x = width - rect_width
+
+    rect_y = 0
+    # 定义半透明矩形的颜色和透明度
+    color_rect = (0, 0, 0)
+    alpha = 0.75  # 透明度
+    video_name = os.path.basename(video_path).split('.')[0]
+    save_dir = os.path.dirname(video_path)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    # 定义视频编码器 FourCC 码
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    video_writer = cv2.VideoWriter(os.path.join(save_dir, video_name + "_with_angle_info.mp4"), fourcc, fps,
+                                   (width, height))
+    # 定义圆环的位置、半径和完整度
+    circle_centers = [
+        (rect_x + 75, rect_y + 100),
+        (rect_x + 225, rect_y + 100),
+        (rect_x + 375, rect_y + 100),
+        (rect_x + 525, rect_y + 100)
+    ]
+    circle_radii = [(40, 40)] * 4  # 半长轴和半短轴相同，形成圆形
+    circle_thickness = 10
+    circle_colors = [(0, 155, 0),  # 左手
+                     (0, 0, 155),  # 右手
+                     (255, 0, 255),  # 左腿
+                     (0, 255, 255),  # 右腿
+                     ]  # 不同颜色
+    circle_completion_factors = [1 - less - greater for less, greater in
+                                 zip(percentages_less, percentages_greater)]  # 圆环的完成度
+    for frame, angles in zip(all_frames, all_angles):
+        # 创建一个与帧相同大小的透明图层
+        overlay = frame.copy()
+
+        # 在透明图层上绘制白色矩形
+        cv2.rectangle(overlay, (rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height), color_rect, -1)
+        # print(angles)
+        # 绘制不完整的圆环
+        for center, radius, color, completion_factor, angle_range, p_less, p_greater, angle, (_, _, _, joint_name,
+                                                                                              _) in zip(
+            circle_centers,
+            circle_radii,
+            circle_colors,
+            circle_completion_factors,
+            suggest_angle_range,
+            percentages_less,
+            percentages_greater,
+            angles, angle_joints):
+            start_angle = 0
+            end_angle = int(completion_factor * 360)
+            cv2.ellipse(overlay, center, radius, 0, start_angle, end_angle, color, circle_thickness)
+            # 在圆心写上分数
+            cv2.putText(
+                overlay,
+                f"{completion_factor * 100:.1f}", (center[0] - int(radius[0] / 2), center[1]), cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, color, 1
+            )
+            # 在圆底下写
+            # 关节名称
+            # 推荐角度范围
+            # x%的时间大于范围
+            # x%的时间小于范围
+            # 当前帧的角度
+            cv2.putText(
+                overlay,
+                # f"Suggest angle range:({angle_range[0]},{angle_range[1]})",
+                f"{joint_name}",
+                (center[0] - radius[0], center[1] + radius[1] + 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1
+            )
+            cv2.putText(
+                overlay,
+                # f"Suggest angle range:({angle_range[0]},{angle_range[1]})",
+                f"({angle_range[0]},{angle_range[1]})",
+                (center[0] - radius[0], center[1] + radius[1] + 60),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1
+            )
+            cv2.putText(
+                overlay,
+                f"{p_less * 100:.1f}% less", (center[0] - radius[0], center[1] + radius[1] + 90),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                color, 1
+            )
+            cv2.putText(
+                overlay,
+                f"{p_greater * 100:.1f}% greater", (center[0] - radius[0], center[1] + radius[1] + 120),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, color, 1
+            )
+            cv2.putText(
+                overlay,
+                f"{angle:.1f}", (center[0] - radius[0], center[1] + radius[1] + 150), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                color, 1
+            )
+            # print(angle)
+        # 将透明图层与原始帧混合
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+        # 写入处理后的帧到输出视频文件
+        video_writer.write(frame)
+    video_writer.release()
+
+
+def get_one_frame_yolo11_keypoints(frame, yolo_model):
+    '''
+    获取单帧的yolo11骨骼
+    '''
+    # 预测
+    result = yolo_model.predict(source=frame)[0]  # predict on an image
+    keypoints = result.keypoints.xy[0].cpu().numpy()
+
+    # 如果没有keypoints，说明没有检测到人，放弃这一帧
+    if len(keypoints) == 0:
+        print("no keypoints detected, skip this frame")
+        return None
+
+    # 遍历keypoints，如果有关键点坐标为0，说明有一些点检测不到，放弃这一帧
+    k_id = [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    # print("keypoints: ", keypoints)
+    # print("keypoints shape: ", keypoints.shape)
+    for i in k_id:
+        if not keypoints[i][0] > 0 and not keypoints[i][1] > 0:
+            print("keypoint {} not detected".format(i))
+            flag = True
+            return None
+
+    return keypoints
+
+
+def get_video_yolo11_keypoints(video_path, yolo_model_path="yolo11x-pose.pt"):
+    '''
+    获取整个视频的yolo11骨骼
+    '''
     model = YOLO(yolo_model_path, "pose")  # load a pretrained model (recommended for training)
     # 使用opencv逐帧读取视频
     cap = cv2.VideoCapture(video_path)
@@ -549,7 +753,7 @@ def get_yolo11_keypoints(video_path, yolo_model_path="yolo11x-pose.pt"):
 
 if __name__ == "__main__":
     video_path = "../../../video/output/crop_test.mp4"
-    frames, keypoints, w, h = get_yolo11_keypoints(video_path)
+    frames, keypoints, w, h = get_video_yolo11_keypoints(video_path)
     output_video = cv2.VideoWriter("video/output/yolo11_test.mp4", cv2.VideoWriter_fourcc(*'mp4v'), 30, (w, h))
     for f, k in tzip(frames, keypoints):
         f = show2Dpose(k, f)
